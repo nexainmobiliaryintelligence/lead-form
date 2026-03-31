@@ -18,7 +18,8 @@ const leadSchema = z.object({
 
 type LeadData = z.infer<typeof leadSchema>;
 
-const WEBHOOK_URL = ""; // ← Pega aquí tu URL de webhook de n8n
+const WEBHOOK_URL = "https://dariikk.app.n8n.cloud/webhook/leads_form";
+const CALENDLY_URL = "https://calendly.com/darikrodriguez-07/30min";
 
 const urgenciaLabels: Record<string, string> = {
   inmediata: "Inmediata",
@@ -44,7 +45,6 @@ export default function LeadForm() {
   });
 
   useEffect(() => {
-    // Capture origin: check utm_source, ref param, or document.referrer
     const source =
       searchParams.get("utm_source") ||
       searchParams.get("ref") ||
@@ -74,15 +74,6 @@ export default function LeadForm() {
       return;
     }
 
-    if (!WEBHOOK_URL) {
-      toast({
-        title: "Webhook no configurado",
-        description: "Configura la URL del webhook de n8n en el componente LeadForm.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setSubmitting(true);
     try {
       const payload = {
@@ -100,6 +91,11 @@ export default function LeadForm() {
 
       setSubmitted(true);
       toast({ title: "¡Formulario enviado!", description: "Nos pondremos en contacto contigo pronto." });
+
+      // Redirigir a Calendly después de 1s
+      setTimeout(() => {
+        window.location.href = CALENDLY_URL;
+      }, 1000);
     } catch {
       toast({
         title: "Error al enviar",
@@ -131,9 +127,7 @@ export default function LeadForm() {
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Nombre */}
       <div className="space-y-1.5">
-        <Label htmlFor="nombre" className="text-sm font-medium text-foreground">
-          Nombre completo
-        </Label>
+        <Label htmlFor="nombre" className="text-sm font-medium text-foreground">Nombre completo</Label>
         <Input
           id="nombre"
           value={form.nombre}
@@ -146,9 +140,7 @@ export default function LeadForm() {
 
       {/* Email */}
       <div className="space-y-1.5">
-        <Label htmlFor="email" className="text-sm font-medium text-foreground">
-          Email
-        </Label>
+        <Label htmlFor="email" className="text-sm font-medium text-foreground">Email</Label>
         <Input
           id="email"
           type="email"
@@ -162,9 +154,7 @@ export default function LeadForm() {
 
       {/* Teléfono */}
       <div className="space-y-1.5">
-        <Label htmlFor="telefono" className="text-sm font-medium text-foreground">
-          Teléfono
-        </Label>
+        <Label htmlFor="telefono" className="text-sm font-medium text-foreground">Teléfono</Label>
         <Input
           id="telefono"
           type="tel"
