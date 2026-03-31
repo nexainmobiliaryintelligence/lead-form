@@ -13,12 +13,12 @@ const leadSchema = z.object({
   urgencia: z.enum(["inmediata", "1-3_meses", "3-6_meses", "solo_explorando"], {
     required_error: "Selecciona la urgencia",
   }),
-  casa: z.string().trim().min(1, "Selecciona la casa de interés"),
+  casa: z.string().trim().min(1, "Casa no identificada"),
 });
 
 type LeadData = z.infer<typeof leadSchema>;
 
-const WEBHOOK_URL = ""; // ← Tu webhook de n8n
+const WEBHOOK_URL = ""; // Tu webhook de n8n
 
 const urgenciaLabels: Record<string, string> = {
   inmediata: "Inmediata",
@@ -27,19 +27,11 @@ const urgenciaLabels: Record<string, string> = {
   solo_explorando: "Solo explorando",
 };
 
-// Lista de casas disponibles (la inmobiliaria solo la define aquí)
-const casasDisponibles = [
-  { id: "casa1", nombre: "Casa 1" },
-  { id: "casa2", nombre: "Casa 2" },
-  { id: "casa3", nombre: "Casa 3" },
-];
-
 export default function LeadForm() {
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof LeadData, string>>>({});
-
   const [form, setForm] = useState<LeadData>({
     nombre: "",
     email: "",
@@ -49,9 +41,18 @@ export default function LeadForm() {
     casa: "",
   });
 
+  useEffect(() => {
+    // Detectar el parámetro ?casa= desde la URL
+    const params = new URLSearchParams(window.location.search);
+    const casaParam = params.get("casa");
+    if (casaParam) {
+      setForm(prev => ({ ...prev, casa: casaParam }));
+    }
+  }, []);
+
   const handleChange = (field: keyof LeadData, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
+    setForm(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) setErrors(prev => ({ ...prev, [field]: undefined }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -59,7 +60,7 @@ export default function LeadForm() {
     const result = leadSchema.safeParse(form);
     if (!result.success) {
       const fieldErrors: Partial<Record<keyof LeadData, string>> = {};
-      result.error.errors.forEach((err) => {
+      result.error.errors.forEach(err => {
         const field = err.path[0] as keyof LeadData;
         if (!fieldErrors[field]) fieldErrors[field] = err.message;
       });
@@ -124,21 +125,21 @@ export default function LeadForm() {
       {/* Nombre */}
       <div className="space-y-1.5">
         <Label htmlFor="nombre">Nombre completo</Label>
-        <Input id="nombre" value={form.nombre} onChange={(e) => handleChange("nombre", e.target.value)} placeholder="Tu nombre" />
+        <Input id="nombre" value={form.nombre} onChange={e => handleChange("nombre", e.target.value)} placeholder="Tu nombre" />
         {errors.nombre && <p className="text-xs text-destructive">{errors.nombre}</p>}
       </div>
 
       {/* Email */}
       <div className="space-y-1.5">
         <Label htmlFor="email">Email</Label>
-        <Input id="email" type="email" value={form.email} onChange={(e) => handleChange("email", e.target.value)} placeholder="tu@email.com" />
+        <Input id="email" type="email" value={form.email} onChange={e => handleChange("email", e.target.value)} placeholder="tu@email.com" />
         {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
       </div>
 
       {/* Teléfono */}
       <div className="space-y-1.5">
         <Label htmlFor="telefono">Teléfono</Label>
-        <Input id="telefono" type="tel" value={form.telefono} onChange={(e) => handleChange("telefono", e.target.value)} placeholder="+34 600 000 000" />
+        <Input id="telefono" type="tel" value={form.telefono} onChange={e => handleChange("telefono", e.target.value)} placeholder="+34 600 000 000" />
         {errors.telefono && <p className="text-xs text-destructive">{errors.telefono}</p>}
       </div>
 
@@ -146,7 +147,7 @@ export default function LeadForm() {
       <div className="space-y-2">
         <Label>¿Qué te interesa?</Label>
         <div className="flex gap-3">
-          {(["comprar", "alquilar"] as const).map((opt) => (
+          {(["comprar", "alquilar"] as const).map(opt => (
             <button key={opt} type="button" onClick={() => handleChange("interes", opt)} className={`flex-1 py-2.5 px-4 rounded-md border text-sm font-medium ${form.interes === opt ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:bg-secondary"}`}>
               {opt === "comprar" ? "Comprar" : "Alquilar"}
             </button>
@@ -158,24 +159,12 @@ export default function LeadForm() {
       <div className="space-y-2">
         <Label>¿Cuál es tu urgencia?</Label>
         <div className="grid grid-cols-2 gap-2">
-          {(["inmediata", "1-3_meses", "3-6_meses", "solo_explorando"] as const).map((opt) => (
+          {(["inmediata", "1-3_meses", "3-6_meses", "solo_explorando"] as const).map(opt => (
             <button key={opt} type="button" onClick={() => handleChange("urgencia", opt)} className={`py-2 px-3 rounded-md border text-sm ${form.urgencia === opt ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:bg-secondary"}`}>
               {urgenciaLabels[opt]}
             </button>
           ))}
         </div>
-      </div>
-
-      {/* Casa de interés */}
-      <div className="space-y-1.5">
-        <Label>Casa de interés</Label>
-        <select value={form.casa} onChange={(e) => handleChange("casa", e.target.value)} className="w-full border rounded-md px-3 py-2">
-          <option value="">Selecciona una casa</option>
-          {casasDisponibles.map((c) => (
-            <option key={c.id} value={c.id}>{c.nombre}</option>
-          ))}
-        </select>
-        {errors.casa && <p className="text-xs text-destructive">{errors.casa}</p>}
       </div>
 
       <Button type="submit" size="lg" className="w-full mt-2" disabled={submitting}>
