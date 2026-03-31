@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,12 +14,11 @@ const leadSchema = z.object({
   urgencia: z.enum(["inmediata", "1-3_meses", "3-6_meses", "solo_explorando"], {
     required_error: "Selecciona la urgencia",
   }),
-  casa: z.string().trim().min(1, "Casa no identificada"),
 });
 
 type LeadData = z.infer<typeof leadSchema>;
 
-const WEBHOOK_URL = ""; // Tu webhook de n8n
+const WEBHOOK_URL = ""; // ← Pega aquí tu URL de webhook de n8n
 
 const urgenciaLabels: Record<string, string> = {
   inmediata: "Inmediata",
@@ -28,31 +28,37 @@ const urgenciaLabels: Record<string, string> = {
 };
 
 export default function LeadForm() {
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof LeadData, string>>>({});
+  const [originUrl, setOriginUrl] = useState("");
+
   const [form, setForm] = useState<LeadData>({
     nombre: "",
     email: "",
     telefono: "",
     interes: "comprar",
     urgencia: "1-3_meses",
-    casa: "",
   });
 
   useEffect(() => {
-    // Detectar el parámetro ?casa= desde la URL
-    const params = new URLSearchParams(window.location.search);
-    const casaParam = params.get("casa");
-    if (casaParam) {
-      setForm(prev => ({ ...prev, casa: casaParam }));
-    }
-  }, []);
+    // Capture origin: check utm_source, ref param, or document.referrer
+    const source =
+      searchParams.get("utm_source") ||
+      searchParams.get("ref") ||
+      searchParams.get("source") ||
+      document.referrer ||
+      "directo";
+    setOriginUrl(source);
+  }, [searchParams]);
 
   const handleChange = (field: keyof LeadData, value: string) => {
-    setForm(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) setErrors(prev => ({ ...prev, [field]: undefined }));
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -60,7 +66,7 @@ export default function LeadForm() {
     const result = leadSchema.safeParse(form);
     if (!result.success) {
       const fieldErrors: Partial<Record<keyof LeadData, string>> = {};
-      result.error.errors.forEach(err => {
+      result.error.errors.forEach((err) => {
         const field = err.path[0] as keyof LeadData;
         if (!fieldErrors[field]) fieldErrors[field] = err.message;
       });
@@ -81,6 +87,7 @@ export default function LeadForm() {
     try {
       const payload = {
         ...result.data,
+        origen: originUrl,
         timestamp: new Date().toISOString(),
         landing_url: window.location.href,
       };
@@ -124,54 +131,102 @@ export default function LeadForm() {
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Nombre */}
       <div className="space-y-1.5">
-        <Label htmlFor="nombre">Nombre completo</Label>
-        <Input id="nombre" value={form.nombre} onChange={e => handleChange("nombre", e.target.value)} placeholder="Tu nombre" />
+        <Label htmlFor="nombre" className="text-sm font-medium text-foreground">
+          Nombre completo
+        </Label>
+        <Input
+          id="nombre"
+          value={form.nombre}
+          onChange={(e) => handleChange("nombre", e.target.value)}
+          placeholder="Tu nombre"
+          className={errors.nombre ? "border-destructive" : ""}
+        />
         {errors.nombre && <p className="text-xs text-destructive">{errors.nombre}</p>}
       </div>
 
       {/* Email */}
       <div className="space-y-1.5">
-        <Label htmlFor="email">Email</Label>
-        <Input id="email" type="email" value={form.email} onChange={e => handleChange("email", e.target.value)} placeholder="tu@email.com" />
+        <Label htmlFor="email" className="text-sm font-medium text-foreground">
+          Email
+        </Label>
+        <Input
+          id="email"
+          type="email"
+          value={form.email}
+          onChange={(e) => handleChange("email", e.target.value)}
+          placeholder="tu@email.com"
+          className={errors.email ? "border-destructive" : ""}
+        />
         {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
       </div>
 
       {/* Teléfono */}
       <div className="space-y-1.5">
-        <Label htmlFor="telefono">Teléfono</Label>
-        <Input id="telefono" type="tel" value={form.telefono} onChange={e => handleChange("telefono", e.target.value)} placeholder="+34 600 000 000" />
+        <Label htmlFor="telefono" className="text-sm font-medium text-foreground">
+          Teléfono
+        </Label>
+        <Input
+          id="telefono"
+          type="tel"
+          value={form.telefono}
+          onChange={(e) => handleChange("telefono", e.target.value)}
+          placeholder="+34 600 000 000"
+          className={errors.telefono ? "border-destructive" : ""}
+        />
         {errors.telefono && <p className="text-xs text-destructive">{errors.telefono}</p>}
       </div>
 
       {/* Interés */}
       <div className="space-y-2">
-        <Label>¿Qué te interesa?</Label>
+        <Label className="text-sm font-medium text-foreground">¿Qué te interesa?</Label>
         <div className="flex gap-3">
-          {(["comprar", "alquilar"] as const).map(opt => (
-            <button key={opt} type="button" onClick={() => handleChange("interes", opt)} className={`flex-1 py-2.5 px-4 rounded-md border text-sm font-medium ${form.interes === opt ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:bg-secondary"}`}>
+          {(["comprar", "alquilar"] as const).map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => handleChange("interes", opt)}
+              className={`flex-1 py-2.5 px-4 rounded-md border text-sm font-medium transition-colors ${
+                form.interes === opt
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-card text-foreground border-border hover:bg-secondary"
+              }`}
+            >
               {opt === "comprar" ? "Comprar" : "Alquilar"}
             </button>
           ))}
         </div>
+        {errors.interes && <p className="text-xs text-destructive">{errors.interes}</p>}
       </div>
 
       {/* Urgencia */}
       <div className="space-y-2">
-        <Label>¿Cuál es tu urgencia?</Label>
+        <Label className="text-sm font-medium text-foreground">¿Cuál es tu urgencia?</Label>
         <div className="grid grid-cols-2 gap-2">
-          {(["inmediata", "1-3_meses", "3-6_meses", "solo_explorando"] as const).map(opt => (
-            <button key={opt} type="button" onClick={() => handleChange("urgencia", opt)} className={`py-2 px-3 rounded-md border text-sm ${form.urgencia === opt ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:bg-secondary"}`}>
+          {(["inmediata", "1-3_meses", "3-6_meses", "solo_explorando"] as const).map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => handleChange("urgencia", opt)}
+              className={`py-2 px-3 rounded-md border text-sm transition-colors ${
+                form.urgencia === opt
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-card text-foreground border-border hover:bg-secondary"
+              }`}
+            >
               {urgenciaLabels[opt]}
             </button>
           ))}
         </div>
+        {errors.urgencia && <p className="text-xs text-destructive">{errors.urgencia}</p>}
       </div>
 
       <Button type="submit" size="lg" className="w-full mt-2" disabled={submitting}>
         {submitting ? "Enviando..." : "Solicitar información"}
       </Button>
 
-      <p className="text-xs text-center text-muted-foreground">Al enviar, aceptas nuestra política de privacidad.</p>
+      <p className="text-xs text-center text-muted-foreground">
+        Al enviar, aceptas nuestra política de privacidad.
+      </p>
     </form>
   );
 }
