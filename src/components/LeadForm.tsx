@@ -18,7 +18,7 @@ const leadSchema = z.object({
 
 type LeadData = z.infer<typeof leadSchema>;
 
-const WEBHOOK_URL = ""; // ← Pega aquí tu URL de webhook de n8n
+const WEBHOOK_URL = "https://dariikk.app.n8n.cloud/webhook/leads_form";
 
 const urgenciaLabels: Record<string, string> = {
   inmediata: "Inmediata",
