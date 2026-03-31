@@ -33,7 +33,7 @@ export default function LeadForm() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof LeadData, string>>>({});
-  const [originUrl, setOriginUrl] = useState("");
+  const [casaOrigen, setCasaOrigen] = useState("");
 
   const [form, setForm] = useState<LeadData>({
     nombre: "",
@@ -44,14 +44,14 @@ export default function LeadForm() {
   });
 
   useEffect(() => {
-    // Capture origin: check utm_source, ref param, or document.referrer
-    const source =
-      searchParams.get("utm_source") ||
+    // Captura la URL de la página de la inmobiliaria desde donde vino el clic
+    const casa =
+      searchParams.get("utm_source") || // opcional, si usan utm
       searchParams.get("ref") ||
       searchParams.get("source") ||
-      document.referrer ||
+      document.referrer || // la página de la casa
       "directo";
-    setOriginUrl(source);
+    setCasaOrigen(casa);
   }, [searchParams]);
 
   const handleChange = (field: keyof LeadData, value: string) => {
@@ -87,9 +87,9 @@ export default function LeadForm() {
     try {
       const payload = {
         ...result.data,
-        origen: originUrl,
+        casa_origen: casaOrigen, // ← URL de la propiedad
+        landing_url: window.location.href, // tu landing
         timestamp: new Date().toISOString(),
-        landing_url: window.location.href,
       };
 
       await fetch(WEBHOOK_URL, {
