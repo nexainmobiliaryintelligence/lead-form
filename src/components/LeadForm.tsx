@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,12 +13,12 @@ const leadSchema = z.object({
   urgencia: z.enum(["inmediata", "1-3_meses", "3-6_meses", "solo_explorando"], {
     required_error: "Selecciona la urgencia",
   }),
-  casaOrigen: z.string().trim().min(1, "Selecciona la casa de interés"),
+  casa: z.string().trim().min(1, "Selecciona la casa de interés"),
 });
 
 type LeadData = z.infer<typeof leadSchema>;
 
-const WEBHOOK_URL = ""; // ← Pega aquí tu URL de webhook de n8n
+const WEBHOOK_URL = ""; // ← Tu webhook de n8n
 
 const urgenciaLabels: Record<string, string> = {
   inmediata: "Inmediata",
@@ -28,37 +27,31 @@ const urgenciaLabels: Record<string, string> = {
   solo_explorando: "Solo explorando",
 };
 
+// Lista de casas disponibles (la inmobiliaria solo la define aquí)
+const casasDisponibles = [
+  { id: "casa1", nombre: "Casa 1" },
+  { id: "casa2", nombre: "Casa 2" },
+  { id: "casa3", nombre: "Casa 3" },
+];
+
 export default function LeadForm() {
-  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof LeadData, string>>>({});
-  const [originUrl, setOriginUrl] = useState("");
-  
+
   const [form, setForm] = useState<LeadData>({
     nombre: "",
     email: "",
     telefono: "",
     interes: "comprar",
     urgencia: "1-3_meses",
-    casaOrigen: "",
+    casa: "",
   });
-
-  useEffect(() => {
-    // Intentamos capturar la casa automáticamente desde referrer
-    const ref = document.referrer;
-    if (ref && !ref.includes(window.location.hostname)) {
-      setOriginUrl(ref); 
-      setForm(prev => ({ ...prev, casaOrigen: ref }));
-    }
-  }, []);
 
   const handleChange = (field: keyof LeadData, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: undefined }));
-    }
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,7 +80,6 @@ export default function LeadForm() {
     try {
       const payload = {
         ...result.data,
-        origen: originUrl || "desconocida",
         timestamp: new Date().toISOString(),
         landing_url: window.location.href,
       };
@@ -131,108 +123,66 @@ export default function LeadForm() {
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Nombre */}
       <div className="space-y-1.5">
-        <Label htmlFor="nombre" className="text-sm font-medium text-foreground">Nombre completo</Label>
-        <Input
-          id="nombre"
-          value={form.nombre}
-          onChange={(e) => handleChange("nombre", e.target.value)}
-          placeholder="Tu nombre"
-          className={errors.nombre ? "border-destructive" : ""}
-        />
+        <Label htmlFor="nombre">Nombre completo</Label>
+        <Input id="nombre" value={form.nombre} onChange={(e) => handleChange("nombre", e.target.value)} placeholder="Tu nombre" />
         {errors.nombre && <p className="text-xs text-destructive">{errors.nombre}</p>}
       </div>
 
       {/* Email */}
       <div className="space-y-1.5">
-        <Label htmlFor="email" className="text-sm font-medium text-foreground">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          value={form.email}
-          onChange={(e) => handleChange("email", e.target.value)}
-          placeholder="tu@email.com"
-          className={errors.email ? "border-destructive" : ""}
-        />
+        <Label htmlFor="email">Email</Label>
+        <Input id="email" type="email" value={form.email} onChange={(e) => handleChange("email", e.target.value)} placeholder="tu@email.com" />
         {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
       </div>
 
       {/* Teléfono */}
       <div className="space-y-1.5">
-        <Label htmlFor="telefono" className="text-sm font-medium text-foreground">Teléfono</Label>
-        <Input
-          id="telefono"
-          type="tel"
-          value={form.telefono}
-          onChange={(e) => handleChange("telefono", e.target.value)}
-          placeholder="+34 600 000 000"
-          className={errors.telefono ? "border-destructive" : ""}
-        />
+        <Label htmlFor="telefono">Teléfono</Label>
+        <Input id="telefono" type="tel" value={form.telefono} onChange={(e) => handleChange("telefono", e.target.value)} placeholder="+34 600 000 000" />
         {errors.telefono && <p className="text-xs text-destructive">{errors.telefono}</p>}
-      </div>
-
-      {/* Casa origen */}
-      <div className="space-y-1.5">
-        <Label htmlFor="casaOrigen" className="text-sm font-medium text-foreground">Casa de interés</Label>
-        <Input
-          id="casaOrigen"
-          value={form.casaOrigen}
-          onChange={(e) => handleChange("casaOrigen", e.target.value)}
-          placeholder="Indica la casa de interés"
-        />
-        {errors.casaOrigen && <p className="text-xs text-destructive">{errors.casaOrigen}</p>}
       </div>
 
       {/* Interés */}
       <div className="space-y-2">
-        <Label className="text-sm font-medium text-foreground">¿Qué te interesa?</Label>
+        <Label>¿Qué te interesa?</Label>
         <div className="flex gap-3">
           {(["comprar", "alquilar"] as const).map((opt) => (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => handleChange("interes", opt)}
-              className={`flex-1 py-2.5 px-4 rounded-md border text-sm font-medium transition-colors ${
-                form.interes === opt
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-card text-foreground border-border hover:bg-secondary"
-              }`}
-            >
+            <button key={opt} type="button" onClick={() => handleChange("interes", opt)} className={`flex-1 py-2.5 px-4 rounded-md border text-sm font-medium ${form.interes === opt ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:bg-secondary"}`}>
               {opt === "comprar" ? "Comprar" : "Alquilar"}
             </button>
           ))}
         </div>
-        {errors.interes && <p className="text-xs text-destructive">{errors.interes}</p>}
       </div>
 
       {/* Urgencia */}
       <div className="space-y-2">
-        <Label className="text-sm font-medium text-foreground">¿Cuál es tu urgencia?</Label>
+        <Label>¿Cuál es tu urgencia?</Label>
         <div className="grid grid-cols-2 gap-2">
           {(["inmediata", "1-3_meses", "3-6_meses", "solo_explorando"] as const).map((opt) => (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => handleChange("urgencia", opt)}
-              className={`py-2 px-3 rounded-md border text-sm transition-colors ${
-                form.urgencia === opt
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-card text-foreground border-border hover:bg-secondary"
-              }`}
-            >
+            <button key={opt} type="button" onClick={() => handleChange("urgencia", opt)} className={`py-2 px-3 rounded-md border text-sm ${form.urgencia === opt ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:bg-secondary"}`}>
               {urgenciaLabels[opt]}
             </button>
           ))}
         </div>
-        {errors.urgencia && <p className="text-xs text-destructive">{errors.urgencia}</p>}
+      </div>
+
+      {/* Casa de interés */}
+      <div className="space-y-1.5">
+        <Label>Casa de interés</Label>
+        <select value={form.casa} onChange={(e) => handleChange("casa", e.target.value)} className="w-full border rounded-md px-3 py-2">
+          <option value="">Selecciona una casa</option>
+          {casasDisponibles.map((c) => (
+            <option key={c.id} value={c.id}>{c.nombre}</option>
+          ))}
+        </select>
+        {errors.casa && <p className="text-xs text-destructive">{errors.casa}</p>}
       </div>
 
       <Button type="submit" size="lg" className="w-full mt-2" disabled={submitting}>
         {submitting ? "Enviando..." : "Solicitar información"}
       </Button>
 
-      <p className="text-xs text-center text-muted-foreground">
-        Al enviar, aceptas nuestra política de privacidad.
-      </p>
+      <p className="text-xs text-center text-muted-foreground">Al enviar, aceptas nuestra política de privacidad.</p>
     </form>
   );
 }
