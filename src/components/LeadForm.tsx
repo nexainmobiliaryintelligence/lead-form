@@ -98,8 +98,8 @@ export default function LeadForm() {
         body: JSON.stringify(payload),
       });
 
-      setSubmitted(true);
-      toast({ title: "¡Formulario enviado!", description: "Nos pondremos en contacto contigo pronto." });
+      toast({ title: "¡Formulario enviado!", description: "Redirigiendo a agendar cita..." });
+      window.location.href = "https://calendly.com/nexainmointelligence/30min";
     } catch {
       toast({
         title: "Error al enviar",
