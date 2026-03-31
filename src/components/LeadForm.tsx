@@ -14,11 +14,12 @@ const leadSchema = z.object({
   urgencia: z.enum(["inmediata", "1-3_meses", "3-6_meses", "solo_explorando"], {
     required_error: "Selecciona la urgencia",
   }),
+  casaOrigen: z.string().trim().min(1, "Selecciona la casa de interés"),
 });
 
 type LeadData = z.infer<typeof leadSchema>;
 
-const WEBHOOK_URL = "https://dariikk.app.n8n.cloud/webhook/leads_form";
+const WEBHOOK_URL = ""; // ← Pega aquí tu URL de webhook de n8n
 
 const urgenciaLabels: Record<string, string> = {
   inmediata: "Inmediata",
@@ -33,26 +34,25 @@ export default function LeadForm() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof LeadData, string>>>({});
-  const [casaOrigen, setCasaOrigen] = useState("");
-
+  const [originUrl, setOriginUrl] = useState("");
+  
   const [form, setForm] = useState<LeadData>({
     nombre: "",
     email: "",
     telefono: "",
     interes: "comprar",
     urgencia: "1-3_meses",
+    casaOrigen: "",
   });
 
   useEffect(() => {
-    // Captura la URL de la página de la inmobiliaria desde donde vino el clic
-    const casa =
-      searchParams.get("utm_source") || // opcional, si usan utm
-      searchParams.get("ref") ||
-      searchParams.get("source") ||
-      document.referrer || // la página de la casa
-      "directo";
-    setCasaOrigen(casa);
-  }, [searchParams]);
+    // Intentamos capturar la casa automáticamente desde referrer
+    const ref = document.referrer;
+    if (ref && !ref.includes(window.location.hostname)) {
+      setOriginUrl(ref); 
+      setForm(prev => ({ ...prev, casaOrigen: ref }));
+    }
+  }, []);
 
   const handleChange = (field: keyof LeadData, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -87,9 +87,9 @@ export default function LeadForm() {
     try {
       const payload = {
         ...result.data,
-        casa_origen: casaOrigen, // ← URL de la propiedad
-        landing_url: window.location.href, // tu landing
+        origen: originUrl || "desconocida",
         timestamp: new Date().toISOString(),
+        landing_url: window.location.href,
       };
 
       await fetch(WEBHOOK_URL, {
@@ -98,8 +98,8 @@ export default function LeadForm() {
         body: JSON.stringify(payload),
       });
 
-      toast({ title: "¡Formulario enviado!", description: "Redirigiendo a agendar cita..." });
-      window.location.href = "https://calendly.com/nexainmointelligence/30min";
+      setSubmitted(true);
+      toast({ title: "¡Formulario enviado!", description: "Nos pondremos en contacto contigo pronto." });
     } catch {
       toast({
         title: "Error al enviar",
@@ -131,9 +131,7 @@ export default function LeadForm() {
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Nombre */}
       <div className="space-y-1.5">
-        <Label htmlFor="nombre" className="text-sm font-medium text-foreground">
-          Nombre completo
-        </Label>
+        <Label htmlFor="nombre" className="text-sm font-medium text-foreground">Nombre completo</Label>
         <Input
           id="nombre"
           value={form.nombre}
@@ -146,9 +144,7 @@ export default function LeadForm() {
 
       {/* Email */}
       <div className="space-y-1.5">
-        <Label htmlFor="email" className="text-sm font-medium text-foreground">
-          Email
-        </Label>
+        <Label htmlFor="email" className="text-sm font-medium text-foreground">Email</Label>
         <Input
           id="email"
           type="email"
@@ -162,9 +158,7 @@ export default function LeadForm() {
 
       {/* Teléfono */}
       <div className="space-y-1.5">
-        <Label htmlFor="telefono" className="text-sm font-medium text-foreground">
-          Teléfono
-        </Label>
+        <Label htmlFor="telefono" className="text-sm font-medium text-foreground">Teléfono</Label>
         <Input
           id="telefono"
           type="tel"
@@ -174,6 +168,18 @@ export default function LeadForm() {
           className={errors.telefono ? "border-destructive" : ""}
         />
         {errors.telefono && <p className="text-xs text-destructive">{errors.telefono}</p>}
+      </div>
+
+      {/* Casa origen */}
+      <div className="space-y-1.5">
+        <Label htmlFor="casaOrigen" className="text-sm font-medium text-foreground">Casa de interés</Label>
+        <Input
+          id="casaOrigen"
+          value={form.casaOrigen}
+          onChange={(e) => handleChange("casaOrigen", e.target.value)}
+          placeholder="Indica la casa de interés"
+        />
+        {errors.casaOrigen && <p className="text-xs text-destructive">{errors.casaOrigen}</p>}
       </div>
 
       {/* Interés */}
