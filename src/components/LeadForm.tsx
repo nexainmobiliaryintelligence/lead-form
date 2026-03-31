@@ -83,11 +83,14 @@ export default function LeadForm() {
         landing_url: window.location.href,
       };
 
-      await fetch(WEBHOOK_URL, {
+      const res = await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+       body: JSON.stringify(payload),
       });
+
+      // 👇 IMPORTANTE: consumir la respuesta
+      await res.json().catch(() => null);
 
       setSubmitted(true);
       toast({ title: "¡Formulario enviado!", description: "Nos pondremos en contacto contigo pronto." });
