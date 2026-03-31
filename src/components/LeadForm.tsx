@@ -83,26 +83,51 @@ export default function LeadForm() {
         landing_url: window.location.href,
       };
 
+      console.log("Enviando a n8n:", payload); // DEBUG
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
       const res = await fetch(WEBHOOK_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-       body: JSON.stringify(payload),
+        headers: { 
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
       });
 
-      // 👇 IMPORTANTE: consumir la respuesta
-      await res.json().catch(() => null);
+      clearTimeout(timeoutId);
+
+      console.log("n8n Response:", { status: res.status, ok: res.ok }); // DEBUG
+
+      // ✅ CORREGIDO: Verificar status ANTES de .json()
+      if (!res.ok) {
+        throw new Error(`n8n devolvió ${res.status}: ${res.statusText}`);
+      }
+
+      // Solo intentar .json() si es 200 OK
+      const responseData = await res.text(); // Usar text() primero
+      console.log("n8n Response Body:", responseData); // DEBUG
 
       setSubmitted(true);
-      toast({ title: "¡Formulario enviado!", description: "Nos pondremos en contacto contigo pronto." });
+      toast({ 
+        title: "¡Formulario enviado correctamente!", 
+        description: "Nos pondremos en contacto contigo pronto." 
+      });
 
-      // Redirigir a Calendly después de 1s
+      // Redirigir a Calendly
       setTimeout(() => {
         window.location.href = CALENDLY_URL;
-      }, 1000);
-    } catch {
+      }, 1500);
+
+    } catch (error: any) {
+      console.error("Error completo:", error); // DEBUG
       toast({
         title: "Error al enviar",
-        description: "Inténtalo de nuevo más tarde.",
+        description: error.name === 'AbortError' 
+          ? "Timeout: n8n tardó demasiado en responder" 
+          : `Error: ${error.message}`,
         variant: "destructive",
       });
     } finally {
@@ -113,7 +138,7 @@ export default function LeadForm() {
   if (submitted) {
     return (
       <div className="text-center py-12 space-y-4">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-success/10 mb-2">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-success/10 mb-2 mx-auto">
           <svg className="w-8 h-8 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
