@@ -61,48 +61,60 @@ export default function LeadForm() {
     }
   };
 
-  const handleSubmit = async (e) => {
-  e.preventDefault();
-  
-  // Validación (igual que antes)
-  const result = leadSchema.safeParse(form);
-  if (!result.success) {
-    // ... errores igual ...
-    return;
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  setSubmitting(true);
-  
-  const payload = {
-    ...result.data,
-    origen: originUrl,
-    timestamp: new Date().toISOString(),
-    landing_url: window.location.href,
+    const result = leadSchema.safeParse(form);
+    if (!result.success) {
+      const fieldErrors: Partial<Record<keyof LeadData, string>> = {};
+      result.error.errors.forEach((err) => {
+        const field = err.path[0] as keyof LeadData;
+        if (!fieldErrors[field]) fieldErrors[field] = err.message;
+      });
+      setErrors(fieldErrors);
+      return;
+    }
+
+    setSubmitting(true);
+
+    const payload = {
+      ...result.data,
+      origen: originUrl,
+      timestamp: new Date().toISOString(),
+      landing_url: window.location.href,
+    };
+
+    try {
+      const res = await fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Status ${res.status}`);
+      }
+
+      setSubmitted(true);
+      toast({
+        title: "¡Enviado correctamente!",
+        description: "Redirigiendo a agendar tu cita...",
+      });
+
+      setTimeout(() => {
+        window.location.href = CALENDLY_URL;
+      }, 1500);
+    } catch (err) {
+      console.error("Error enviando a n8n:", err);
+      toast({
+        title: "Error al enviar",
+        description: "Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
-
-  // 🔥 ENVÍA Y SIGUE (no espera respuesta)
-  fetch(WEBHOOK_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    keepalive: true  // Envía aunque cambies página
-  }).catch(err => {
-    console.error("n8n:", err); // Solo log, no bloquea
-  });
-
-  // ✅ AVANZA INMEDIATAMENTE
-  setSubmitted(true);
-  toast({ 
-    title: "¡Enviado correctamente!", 
-    description: "Nos contactamos pronto." 
-  });
-  
-  setTimeout(() => {
-    window.location.href = CALENDLY_URL;
-  }, 1000);
-  
-  setSubmitting(false);
-};
 
   if (submitted) {
     return (
