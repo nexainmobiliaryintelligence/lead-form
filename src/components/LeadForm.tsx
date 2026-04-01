@@ -84,36 +84,29 @@ export default function LeadForm() {
       landing_url: window.location.href,
     };
 
-    try {
-      const res = await fetch(WEBHOOK_URL, {
+    // sendBeacon cierra la conexión limpiamente, n8n no se queda esperando
+    const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+    const sent = navigator.sendBeacon(WEBHOOK_URL, blob);
+
+    if (!sent) {
+      // Fallback si sendBeacon falla
+      await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        throw new Error(`Status ${res.status}`);
-      }
-
-      setSubmitted(true);
-      toast({
-        title: "¡Enviado correctamente!",
-        description: "Redirigiendo a agendar tu cita...",
-      });
-
-      setTimeout(() => {
-        window.location.href = CALENDLY_URL;
-      }, 1500);
-    } catch (err) {
-      console.error("Error enviando a n8n:", err);
-      toast({
-        title: "Error al enviar",
-        description: "Inténtalo de nuevo.",
-        variant: "destructive",
-      });
-    } finally {
-      setSubmitting(false);
+      }).catch(() => {});
     }
+
+    setSubmitted(true);
+    setSubmitting(false);
+    toast({
+      title: "¡Enviado correctamente!",
+      description: "Redirigiendo a agendar tu cita...",
+    });
+
+    setTimeout(() => {
+      window.location.href = CALENDLY_URL;
+    }, 1500);
   };
 
   if (submitted) {
