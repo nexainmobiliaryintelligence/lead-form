@@ -85,12 +85,13 @@ export default function LeadForm() {
     };
 
     try {
-      const res = await fetch(WEBHOOK_URL, {
+      // mode: "no-cors" evita problemas de CORS desde el dominio público
+      await fetch(WEBHOOK_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain" },
         body: JSON.stringify(payload),
       });
-      await res.text(); // Consumir respuesta para cerrar conexión limpiamente
 
       setSubmitted(true);
       setSubmitting(false);
